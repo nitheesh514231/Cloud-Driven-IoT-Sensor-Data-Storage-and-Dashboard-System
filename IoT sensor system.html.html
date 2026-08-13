@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cloud-Driven IoT Sensor Dashboard (Advanced)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --border: #334155;
+      --accent: #3b82f6;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --warning: #f59e0b;
+    }
+
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #cbd5e1;
+      --accent: #2563eb;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --warning: #d97706;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      transition: background 0.3s, color 0.3s;
+    }
+
+    header {
+      background: var(--card-bg);
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .user-info {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 1rem auto;
+      padding: 0 1rem;
+    }
+
+    .controls {
+      background: var(--card-bg);
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      border: 1px solid var(--border);
+    }
+
+    .controls label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .controls input[type="number"] {
+      width: 80px;
+      padding: 0.4rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+
+    button.danger {
+      background: var(--danger);
+    }
+
+    button.success {
+      background: var(--success);
+    }
+
+    button.secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    button.warning {
+      background: var(--warning);
+      color: #000;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .stat-card h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .stat-card .value {
+      font-size: 1.4rem;
+      font-weight: bold;
+    }
+
+    .charts-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .chart-card {
+      background: var(--card-bg);
+      padding: 1rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .chart-card h3 {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+      color: var(--text);
+    }
+
+    .logs-section {
+      background: var(--card-bg);
+      padding: 1rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .logs-section h3 {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+      color: var(--text);
+    }
+
+    .logs-box {
+      max-height: 250px;
+      overflow-y: auto;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.5rem;
+      font-family: Consolas, monospace;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .log-line {
+      margin: 0.25rem 0;
+    }
+
+    .log-line strong {
+      color: var(--accent);
+    }
+
+    /* Login & modals */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+
+    .modal-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    }
+
+    .modal-box h2 {
+      margin: 0 0 1rem;
+      font-size: 1.2rem;
+      text-align: center;
+    }
+
+    .modal-box label {
+      display: block;
+      margin: 0.75rem 0 0.25rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .modal-box input {
+      width: 100%;
+      padding: 0.6rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      box-sizing: border-box;
+    }
+
+    .modal-box button {
+      width: 100%;
+      margin-top: 1rem;
+    }
+
+    .modal-error {
+      color: var(--danger);
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+
+    .modal-info {
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .role-badge {
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      margin-left: 0.4rem;
+    }
+
+    .role-badge.viewer {
+      background: var(--warning);
+      color: #000;
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Overlay -->
+  <div class="overlay" id="login-overlay">
+    <div class="modal-box">
+      <h2>IoT Dashboard Login</h2>
+      <form id="login-form">
+        <label for="login-username">Username</label>
+        <input type="text" id="login-username" required />
+
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" required />
+
+        <div class="modal-error" id="login-error"></div>
+
+        <button type="submit">Login</button>
+      </form>
+      <p class="modal-info">
+        Demo accounts:<br />
+        Admin: admin / admin123<br />
+        Viewer: viewer / viewer123
+      </p>
+    </div>
+  </div>
+
+  <!-- Change Password Modal -->
+  <div class="overlay" id="password-overlay">
+    <div class="modal-box">
+      <h2>Change Password</h2>
+      <form id="password-form">
+        <label for="cur-password">Current Password</label>
+        <input type="password" id="cur-password" required />
+
+        <label for="new-password">New Password</label>
+        <input type="password" id="new-password" required />
+
+        <label for="confirm-password">Confirm New Password</label>
+        <input type="password" id="confirm-password" required />
+
+        <div class="modal-error" id="password-error"></div>
+        <div class="modal-info" id="password-success"></div>
+
+        <button type="submit" class="success">Update Password</button>
+        <button type="button" class="secondary" id="cancel-password-btn">Cancel</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main App (hidden until login) -->
+  <div id="app-container" class="hidden">
+    <header>
+      <h1>☁️ Cloud-Driven IoT Sensor Dashboard (Advanced)</h1>
+      <div class="header-controls">
+        <span class="user-info" id="user-display">User: --<span class="role-badge" id="role-badge"></span></span>
+        <button id="theme-toggle" class="secondary">Toggle Theme</button>
+        <button id="change-password-btn" class="warning">Change Password</button>
+        <button id="logout-btn" class="danger">Logout</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- Controls (admin only) -->
+      <section class="controls" id="admin-controls">
+        <label>
+          Simulate Sensors:
+          <input type="checkbox" id="simulate-toggle" checked />
+        </label>
+
+        <label>
+          Interval (sec):
+          <input type="number" id="interval-sec" min="1" max="60" value="3" />
+        </label>
+
+        <button id="start-btn" class="success">Start Simulation</button>
+        <button id="stop-btn" class="danger">Stop Simulation</button>
+        <button id="clear-data-btn" class="danger">Clear All Data</button>
+        <button id="export-csv-btn">Export CSV</button>
+      </section>
+
+      <!-- Controls (viewer only) -->
+      <section class="controls hidden" id="viewer-controls">
+        <span style="color:var(--muted); font-size:0.9rem;">
+          You are in viewer mode. You can view data and export CSV.
+        </span>
+        <button id="export-csv-btn-viewer">Export CSV</button>
+      </section>
+
+      <!-- Stats -->
+      <section class="stats">
+        <div class="stat-card">
+          <h3>Temperature (°C)</h3>
+          <div class="value" id="temp-value">--</div>
+        </div>
+        <div class="stat-card">
+          <h3>Humidity (%)</h3>
+          <div class="value" id="humidity-value">--</div>
+        </div>
+        <div class="stat-card">
+          <h3>Pressure (hPa)</h3>
+          <div class="value" id="pressure-value">--</div>
+        </div>
+        <div class="stat-card">
+          <h3>Data Points Stored</h3>
+          <div class="value" id="datapoints-value">0</div>
+        </div>
+      </section>
+
+      <!-- Charts -->
+      <section class="charts-row">
+        <div class="chart-card">
+          <h3>Temperature Over Time</h3>
+          <canvas id="temp-chart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Humidity Over Time</h3>
+          <canvas id="humidity-chart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Pressure Over Time</h3>
+          <canvas id="pressure-chart"></canvas>
+        </div>
+      </section>
+
+      <!-- Logs -->
+      <section class="logs-section">
+        <h3>Live Sensor Logs</h3>
+        <div class="logs-box" id="logs-box"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // ---------- Users & Auth ----------
+
+    // Initial users (stored in localStorage on first run)
+    const DEFAULT_USERS = [
+      { username: "admin", password: "admin123", role: "admin" },
+      { username: "viewer", password: "viewer123", role: "viewer" },
+    ];
+
+    const USERS_KEY = "iot_dashboard_users";
+    const AUTH_KEY = "iot_dashboard_auth";
+    const THEME_KEY = "iot_dashboard_theme";
+    const STORAGE_KEY = "iot_sensor_data";
+
+    function initUsers() {
+      const existing = localStorage.getItem(USERS_KEY);
+      if (!existing) {
+        localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
+      }
+    }
+
+    function getUsers() {
+      const raw = localStorage.getItem(USERS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }
+
+    function saveUsers(users) {
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    }
+
+    function findUser(username) {
+      const users = getUsers();
+      return users.find((u) => u.username.toLowerCase() === username.toLowerCase());
+    }
+
+    function updateUserPassword(username, newPassword) {
+      const users = getUsers();
+      const idx = users.findIndex((u) => u.username.toLowerCase() === username.toLowerCase());
+      if (idx === -1) return false;
+      users[idx].password = newPassword;
+      saveUsers(users);
+      return true;
+    }
+
+    function validateLogin(username, password) {
+      const user = findUser(username);
+      if (!user) return null;
+      if (user.password !== password) return null;
+      return { username: user.username, role: user.role };
+    }
+
+    function checkAuth() {
+      const stored = localStorage.getItem(AUTH_KEY);
+      if (!stored) return null;
+      try {
+        const data = JSON.parse(stored);
+        if (data && data.username) {
+          const user = findUser(data.username);
+          if (!user) return null;
+          return { username: user.username, role: user.role };
+        }
+      } catch {
+        return null;
+      }
+      return null;
+    }
+
+    function setAuth(user) {
+      localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+    }
+
+    function clearAuth() {
+      localStorage.removeItem(AUTH_KEY);
+    }
+
+    // ---------- Theme ----------
+
+    function getTheme() {
+      return localStorage.getItem(THEME_KEY) || "dark";
+    }
+
+    function setTheme(theme) {
+      localStorage.setItem(THEME_KEY, theme);
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+
+    // ---------- Local "cloud" storage ----------
+
+    function getStoredData() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }
+
+    function saveStoredData(data) {
+      const trimmed = data.slice(-300);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+    }
+
+    function addSensorReading(reading) {
+      const data = getStoredData();
+      data.push(reading);
+      saveStoredData(data);
+      return data;
+    }
+
+    function clearAllData() {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+
+    function hardResetAll() {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(AUTH_KEY);
+      localStorage.removeItem(THEME_KEY);
+      localStorage.removeItem(USERS_KEY);
+    }
+
+    // ---------- DOM elements ----------
+
+    const loginOverlay = document.getElementById("login-overlay");
+    const loginForm = document.getElementById("login-form");
+    const loginUsernameInput = document.getElementById("login-username");
+    const loginPasswordInput = document.getElementById("login-password");
+    const loginErrorEl = document.getElementById("login-error");
+
+    const passwordOverlay = document.getElementById("password-overlay");
+    const passwordForm = document.getElementById("password-form");
+    const curPasswordInput = document.getElementById("cur-password");
+    const newPasswordInput = document.getElementById("new-password");
+    const confirmPasswordInput = document.getElementById("confirm-password");
+    const passwordErrorEl = document.getElementById("password-error");
+    const passwordSuccessEl = document.getElementById("password-success");
+    const cancelPasswordBtn = document.getElementById("cancel-password-btn");
+
+    const appContainer = document.getElementById("app-container");
+    const userDisplay = document.getElementById("user-display");
+    const roleBadge = document.getElementById("role-badge");
+    const themeToggleBtn = document.getElementById("theme-toggle");
+    const logoutBtn = document.getElementById("logout-btn");
+    const changePasswordBtn = document.getElementById("change-password-btn");
+
+    const adminControls = document.getElementById("admin-controls");
+    const viewerControls = document.getElementById("viewer-controls");
+
+    const simulateToggle = document.getElementById("simulate-toggle");
+    const intervalInput = document.getElementById("interval-sec");
+    const startBtn = document.getElementById("start-btn");
+    const stopBtn = document.getElementById("stop-btn");
+    const clearDataBtn = document.getElementById("clear-data-btn");
+    const exportCsvBtn = document.getElementById("export-csv-btn");
+    const exportCsvBtnViewer = document.getElementById("export-csv-btn-viewer");
+
+    const tempValueEl = document.getElementById("temp-value");
+    const humidityValueEl = document.getElementById("humidity-value");
+    const pressureValueEl = document.getElementById("pressure-value");
+    const datapointsValueEl = document.getElementById("datapoints-value");
+
+    const logsBox = document.getElementById("logs-box");
+
+    // Charts
+    let tempChart, humidityChart, pressureChart;
+
+    // Current logged-in user
+    let currentUser = null;
+
+    // ---------- Auth UI ----------
+
+    function applyAuthUI() {
+      const user = checkAuth();
+      if (user) {
+        currentUser = user;
+        loginOverlay.style.display = "none";
+        appContainer.classList.remove("hidden");
+
+        userDisplay.innerHTML = `User: ${user.username}`;
+        roleBadge.textContent = user.role;
+        roleBadge.className = "role-badge " + (user.role === "viewer" ? "viewer" : "");
+
+        if (user.role === "admin") {
+          adminControls.classList.remove("hidden");
+          viewerControls.classList.add("hidden");
+        } else {
+          adminControls.classList.add("hidden");
+          viewerControls.classList.remove("hidden");
+        }
+      } else {
+        currentUser = null;
+        loginOverlay.style.display = "flex";
+        appContainer.classList.add("hidden");
+      }
+    }
+
+    loginForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const username = loginUsernameInput.value.trim();
+      const password = loginPasswordInput.value;
+
+      const user = validateLogin(username, password);
+      if (!user) {
+        loginErrorEl.textContent = "Invalid username or password.";
+        return;
+      }
+
+      setAuth(user);
+      loginErrorEl.textContent = "";
+      loginForm.reset();
+      applyAuthUI();
+      initDashboard();
+    });
+
+    logoutBtn.addEventListener("click", () => {
+      if (!confirm("Logout from dashboard?")) return;
+      clearAuth();
+      location.reload();
+    });
+
+    // ---------- Password change ----------
+
+    changePasswordBtn.addEventListener("click", () => {
+      passwordOverlay.style.display = "flex";
+      passwordErrorEl.textContent = "";
+      passwordSuccessEl.textContent = "";
+      passwordForm.reset();
+    });
+
+    cancelPasswordBtn.addEventListener("click", () => {
+      passwordOverlay.style.display = "none";
+    });
+
+    passwordForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const curPwd = curPasswordInput.value;
+      const newPwd = newPasswordInput.value;
+      const confirmPwd = confirmPasswordInput.value;
+
+      if (!currentUser) {
+        passwordErrorEl.textContent = "Not logged in.";
+        return;
+      }
+
+      const user = findUser(currentUser.username);
+      if (!user || user.password !== curPwd) {
+        passwordErrorEl.textContent = "Current password is incorrect.";
+        return;
+      }
+
+      if (newPwd.length < 4) {
+        passwordErrorEl.textContent = "New password must be at least 4 characters.";
+        return;
+      }
+
+      if (newPwd !== confirmPwd) {
+        passwordErrorEl.textContent = "New passwords do not match.";
+        return;
+      }
+
+      const ok = updateUserPassword(currentUser.username, newPwd);
+      if (!ok) {
+        passwordErrorEl.textContent = "Failed to update password.";
+        return;
+      }
+
+      passwordSuccessEl.textContent = "Password updated successfully.";
+      passwordErrorEl.textContent = "";
+      setTimeout(() => {
+        passwordOverlay.style.display = "none";
+      }, 800);
+    });
+
+    // ---------- Theme ----------
+
+    function initTheme() {
+      const theme = getTheme();
+      setTheme(theme);
+    }
+
+    themeToggleBtn.addEventListener("click", () => {
+      const current = getTheme();
+      const next = current === "dark" ? "light" : "dark";
+      setTheme(next);
+    });
+
+    // ---------- Dashboard logic ----------
+
+    let simulationInterval = null;
+    let intervalMs = 3000;
+
+    function initCharts() {
+      const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: {
+            ticks: { color: "#94a3b8", maxTicksLimit: 6 },
+            grid: { color: "#334155" },
+          },
+          y: {
+            ticks: { color: "#94a3b8" },
+            grid: { color: "#334155" },
+          },
+        },
+        plugins: {
+          legend: { labels: { color: "#cbd5e1" } },
+        },
+      };
+
+      const tempCtx = document.getElementById("temp-chart").getContext("2d");
+      tempChart = new Chart(tempCtx, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [{ label: "Temperature (°C)", data: [], borderColor: "#f59e0b", backgroundColor: "#f59e0b" }],
+        },
+        options: commonOptions,
+      });
+
+      const humidityCtx = document.getElementById("humidity-chart").getContext("2d");
+      humidityChart = new Chart(humidityCtx, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [{ label: "Humidity (%)", data: [], borderColor: "#22c55e", backgroundColor: "#22c55e" }],
+        },
+        options: commonOptions,
+      });
+
+      const pressureCtx = document.getElementById("pressure-chart").getContext("2d");
+      pressureChart = new Chart(pressureCtx, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [{ label: "Pressure (hPa)", data: [], borderColor: "#3b82f6", backgroundColor: "#3b82f6" }],
+        },
+        options: commonOptions,
+      });
+    }
+
+    function updateCharts(data) {
+      const labels = data.map((d, i) => i + 1);
+
+      tempChart.data.labels = labels;
+      tempChart.data.datasets[0].data = data.map((d) => d.temperature);
+      tempChart.update();
+
+      humidityChart.data.labels = labels;
+      humidityChart.data.datasets[0].data = data.map((d) => d.humidity);
+      humidityChart.update();
+
+      pressureChart.data.labels = labels;
+      pressureChart.data.datasets[0].data = data.map((d) => d.pressure);
+      pressureChart.update();
+    }
+
+    function updateStats(data) {
+      if (data.length === 0) {
+        tempValueEl.textContent = "--";
+        humidityValueEl.textContent = "--";
+        pressureValueEl.textContent = "--";
+        datapointsValueEl.textContent = "0";
+        return;
+      }
+
+      const last = data[data.length - 1];
+      tempValueEl.textContent = last.temperature.toFixed(1);
+      humidityValueEl.textContent = last.humidity.toFixed(1);
+      pressureValueEl.textContent = last.pressure.toFixed(1);
+      datapointsValueEl.textContent = data.length;
+    }
+
+    function addLog(reading) {
+      const line = document.createElement("div");
+      line.className = "log-line";
+      const time = new Date(reading.timestamp).toLocaleTimeString();
+      line.innerHTML =
+        `[${time}] Temp: <strong>${reading.temperature.toFixed(1)}°C</strong>, ` +
+        `Humidity: <strong>${reading.humidity.toFixed(1)}%</strong>, ` +
+        `Pressure: <strong>${reading.pressure.toFixed(1)} hPa</strong>`;
+      logsBox.appendChild(line);
+      logsBox.scrollTop = logsBox.scrollHeight;
+    }
+
+    function generateSimulatedReading() {
+      const baseTemp = 25 + Math.sin(Date.now() / 10000) * 5;
+      const baseHumidity = 50 + Math.cos(Date.now() / 15000) * 10;
+      const basePressure = 1013 + Math.sin(Date.now() / 20000) * 3;
+
+      const temperature = baseTemp + (Math.random() - 0.5) * 2;
+      const humidity = baseHumidity + (Math.random() - 0.5) * 4;
+      const pressure = basePressure + (Math.random() - 0.5) * 1.5;
+
+      return {
+        timestamp: Date.now(),
+        temperature,
+        humidity,
+        pressure,
+      };
+    }
+
+    function tick() {
+      const reading = generateSimulatedReading();
+      const data = addSensorReading(reading);
+
+      updateStats(data);
+      updateCharts(data);
+      addLog(reading);
+    }
+
+    function startSimulation() {
+      if (simulationInterval) return;
+      intervalMs = Math.max(1000, Math.min(60000, (parseInt(intervalInput.value, 10) || 3) * 1000));
+      simulationInterval = setInterval(tick, intervalMs);
+    }
+
+    function stopSimulation() {
+      if (!simulationInterval) return;
+      clearInterval(simulationInterval);
+      simulationInterval = null;
+    }
+
+    function exportCSV() {
+      const data = getStoredData();
+      if (data.length === 0) {
+        alert("No data to export.");
+        return;
+      }
+
+      let csv = "timestamp,temperature,humidity,pressure\n";
+      data.forEach((d) => {
+        csv += `${d.timestamp},${d.temperature.toFixed(2)},${d.humidity.toFixed(2)},${d.pressure.toFixed(2)}\n`;
+      });
+
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "iot_sensor_data.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Controls (admin only)
+
+    startBtn.addEventListener("click", () => {
+      startSimulation();
+    });
+
+    stopBtn.addEventListener("click", () => {
+      stopSimulation();
+    });
+
+    clearDataBtn.addEventListener("click", () => {
+      if (!currentUser || currentUser.role !== "admin") return;
+      if (!confirm("Clear all stored sensor data? (You will remain logged in)")) return;
+      clearAllData();
+      location.reload();
+    });
+
+    exportCsvBtn.addEventListener("click", exportCSV);
+    exportCsvBtnViewer.addEventListener("click", exportCSV);
+
+    simulateToggle.addEventListener("change", () => {
+      if (simulateToggle.checked) {
+        startSimulation();
+      } else {
+        stopSimulation();
+      }
+    });
+
+    intervalInput.addEventListener("change", () => {
+      if (simulationInterval) {
+        stopSimulation();
+        startSimulation();
+      }
+    });
+
+    // ---------- Init ----------
+
+    function initDashboard() {
+      initCharts();
+      const initialData = getStoredData();
+      updateStats(initialData);
+      updateCharts(initialData);
+
+      if (currentUser && currentUser.role === "admin" && simulateToggle.checked) {
+        startSimulation();
+      }
+    }
+
+    // On load
+    initUsers();
+    initTheme();
+    applyAuthUI();
+
+    if (checkAuth()) {
+      initDashboard();
+    }
+  </script>
+</body>
+</html>
